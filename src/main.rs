@@ -1,4 +1,3 @@
-use std::env;
 use std::fs::OpenOptions;
 use std::io::{self, Write};
 use std::str::FromStr;
@@ -127,7 +126,7 @@ struct MorseArgs {
     in_file: String,
 
     /// Name of the file to read, if the value is "-" write to stdout
-    #[clap(short, long)]
+    #[clap(short, long, default_value = "-")]
     out_file: String,
 }
 
@@ -147,8 +146,7 @@ fn get_writer(arg: Option<String>) -> Box<dyn Write> {
 fn main() {
     let args = MorseArgs::parse();
     print!("{:?}", args);
-    let arg = env::args().nth(1);
-    let mut out_writer = get_writer(arg);
+    let mut out_writer = get_writer(Some(args.out_file));
     out_writer
         .write(b"Hello World!")
         .expect("Some error while writing");
