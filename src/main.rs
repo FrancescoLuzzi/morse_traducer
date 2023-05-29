@@ -1,13 +1,14 @@
 use std::fs::OpenOptions;
-use std::io::{self, Write};
-use std::str::FromStr;
+use std::io::{self, BufRead, BufReader, Write};
+use std::ops::Deref;
+use std::str::{self, FromStr};
 
 use clap::{self, Parser};
 
 /// tuple struct with two string slices with static lifetime (aka: as long as the program runs)
-struct Letter(&'static str, &'static str);
+struct Letter<'a>(&'a str, &'a str);
 
-impl Letter {
+impl<'a> Letter<'a> {
     const A: Self = Self("a", ".-");
     const B: Self = Self("b", "-...");
     const C: Self = Self("c", "-.-.");
@@ -45,9 +46,24 @@ impl Letter {
     const NINE: Self = Self("9", "----.");
     const ZERO: Self = Self("0", "-----");
     const SPACE: Self = Self(" ", " ");
+
+    pub fn new(human_text: &'a str, morse_text: &'a str) -> Letter<'a> {
+        Letter(human_text, morse_text)
+    }
+
+    pub fn to_morse(&self) -> &'a [u8] {
+        let Self(_, morse) = self;
+        morse.as_bytes()
+    }
+
+    pub fn add_morse(&'a self, other: &'a Letter) -> String {
+        let Self(_, morse1) = self;
+        let Self(_, morse2) = other;
+        format!("{}{}", morse1, morse2)
+    }
 }
 
-impl FromStr for Letter {
+impl FromStr for Letter<'_> {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_ascii_lowercase().as_str() {
@@ -130,14 +146,58 @@ struct MorseArgs {
     out_file: String,
 }
 
-fn get_writer(arg: Option<String>) -> Box<dyn Write> {
+struct MorseTraducer {
+    input: Box<dyn BufRead>,
+    output: Box<dyn Write>,
+}
+
+impl MorseTraducer {
+    fn new(input: Box<dyn BufRead>, output: Box<dyn Write>) -> Self {
+        Self { input, output }
+    }
+    fn copy(&mut self) -> io::Result<()> {
+        let shifted_buffer = self.input.as_mut().lines().map(|line| {
+            Vec::from_iter(
+                line.unwrap()
+                    .bytes()
+                    .map(
+                        |byte| match Letter::from_str(str::from_utf8(&[byte]).unwrap()) {
+                            Ok(letter) => {
+                                letter.add_morse(&Letter::SPACE).deref().as_bytes().to_vec()
+                            }
+                            Err(_) => b"".to_vec(),
+                        },
+                    )
+                    .flatten(),
+            )
+        });
+        for line in shifted_buffer {
+            self.output.write(&line)?;
+        }
+        Ok(())
+    }
+}
+fn get_reader(arg: Option<&str>) -> Box<dyn BufRead> {
+    match arg.as_deref() {
+        None | Some("-") => Box::new(io::stdin().lock()),
+        Some(file_name) => Box::new(BufReader::new(
+            OpenOptions::new()
+                .read(true)
+                .create(true)
+                .open(file_name)
+                .unwrap(),
+        )),
+    }
+}
+
+fn get_writer(arg: Option<&str>) -> Box<dyn Write> {
     match arg.as_deref() {
         None | Some("-") => Box::new(io::stdout().lock()),
-        Some(string) => Box::new(
+        Some(file_name) => Box::new(
             OpenOptions::new()
                 .write(true)
                 .create(true)
-                .open(string)
+                .open(file_name)
                 .unwrap(),
         ),
     }
@@ -146,8 +206,8 @@ fn get_writer(arg: Option<String>) -> Box<dyn Write> {
 fn main() {
     let args = MorseArgs::parse();
     print!("{:?}", args);
-    let mut out_writer = get_writer(Some(args.out_file));
-    out_writer
-        .write(b"Hello World!")
-        .expect("Some error while writing");
+    let out_writer = get_writer(Some(&args.out_file));
+    let in_reader = get_reader(Some(&args.in_file));
+    let mut morse_traducer = MorseTraducer::new(in_reader, out_writer);
+    morse_traducer.copy().unwrap();
 }
