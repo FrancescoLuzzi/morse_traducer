@@ -1,11 +1,11 @@
 use std::fs::OpenOptions;
 use std::io::{self, BufRead, BufReader, Write};
-use std::ops::Deref;
 use std::str::{self, FromStr};
 
 use clap::{self, Parser};
 
 /// tuple struct with two string slices with static lifetime (aka: as long as the program runs)
+#[derive(Debug)]
 struct Letter<'a>(&'a str, &'a str);
 
 impl<'a> Letter<'a> {
@@ -45,21 +45,19 @@ impl<'a> Letter<'a> {
     const EIGHT: Self = Self("8", "---..");
     const NINE: Self = Self("9", "----.");
     const ZERO: Self = Self("0", "-----");
-    const SPACE: Self = Self(" ", " ");
+    const SPACE: Self = Self(" ", "/");
 
-    pub fn new(human_text: &'a str, morse_text: &'a str) -> Letter<'a> {
-        Letter(human_text, morse_text)
-    }
-
-    pub fn to_morse(&self) -> &'a [u8] {
-        let Self(_, morse) = self;
-        morse.as_bytes()
-    }
-
-    pub fn add_morse(&'a self, other: &'a Letter) -> String {
-        let Self(_, morse1) = self;
-        let Self(_, morse2) = other;
-        format!("{}{}", morse1, morse2)
+    pub fn concat_morse(args: Vec<Letter<'_>>) -> String {
+        let mut output = String::from("");
+        if let Some(letter) = args.first() {
+            let Letter(_, morse) = letter;
+            output = String::from(*morse);
+        }
+        for letter in args.iter().skip(1) {
+            let Letter(_, morse) = letter;
+            output = output + " " + morse;
+        }
+        output
     }
 }
 
@@ -103,12 +101,20 @@ impl FromStr for Letter<'_> {
             "8" | "---.." => Ok(Letter::EIGHT),
             "9" | "----." => Ok(Letter::NINE),
             "0" | "-----" => Ok(Letter::ZERO),
-            " " => Ok(Letter::SPACE),
+            " " | "/" => Ok(Letter::SPACE),
             _ => Err(format!(
                 "No representation found for the string: {}",
                 s.to_string()
             )),
         }
+    }
+}
+
+impl PartialEq for Letter<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        let Self(human1, morse1) = self;
+        let Self(human2, morse2) = other;
+        human1 == human2 && morse1 == morse2
     }
 }
 
@@ -157,23 +163,22 @@ impl MorseTraducer {
     }
     fn copy(&mut self) -> io::Result<()> {
         let shifted_buffer = self.input.as_mut().lines().map(|line| {
-            Vec::from_iter(
+            Letter::concat_morse(
                 line.unwrap()
                     .bytes()
                     .map(
                         |byte| match Letter::from_str(str::from_utf8(&[byte]).unwrap()) {
-                            Ok(letter) => {
-                                letter.add_morse(&Letter::SPACE).deref().as_bytes().to_vec()
-                            }
-                            Err(_) => b"".to_vec(),
+                            Ok(letter) => letter,
+                            Err(err) => panic!("Character not supported {:?}", err),
                         },
                     )
-                    .flatten(),
+                    .collect::<Vec<Letter<'_>>>(),
             )
         });
         for line in shifted_buffer {
-            self.output.write(&line)?;
+            self.output.write((line + "\n").as_bytes())?;
         }
+        self.output.flush()?;
         Ok(())
     }
 }
@@ -197,6 +202,7 @@ fn get_writer(arg: Option<&str>) -> Box<dyn Write> {
             OpenOptions::new()
                 .write(true)
                 .create(true)
+                .truncate(true)
                 .open(file_name)
                 .unwrap(),
         ),
