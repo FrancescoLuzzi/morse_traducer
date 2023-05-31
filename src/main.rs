@@ -59,6 +59,18 @@ impl<'a> Letter<'a> {
         }
         output
     }
+    pub fn concat_text(args: Vec<Letter<'_>>) -> String {
+        let mut output = String::from("");
+        if let Some(letter) = args.first() {
+            let Letter(text, _) = letter;
+            output = String::from(*text);
+        }
+        for letter in args.iter().skip(1) {
+            let Letter(text, _) = letter;
+            output = output + text;
+        }
+        output
+    }
 }
 
 impl FromStr for Letter<'_> {
@@ -119,18 +131,35 @@ impl PartialEq for Letter<'_> {
 }
 
 #[derive(Debug)]
-enum OutputType {
+enum MorseTraductionType {
     Text,
     Audio,
 }
 
-impl FromStr for OutputType {
+impl FromStr for MorseTraductionType {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_ascii_lowercase().as_str() {
-            "text" => Ok(OutputType::Text),
-            "audio" => Ok(OutputType::Audio),
+            "text" => Ok(MorseTraductionType::Text),
+            "audio" => Ok(MorseTraductionType::Audio),
             _ => Err(format!("Type of output not found: {}", s.to_string())),
+        }
+    }
+}
+
+#[derive(Debug)]
+enum MorseCommand {
+    Encode,
+    Decode,
+}
+
+impl FromStr for MorseCommand {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "e" | "encode" => Ok(MorseCommand::Encode),
+            "d" | "decode" => Ok(MorseCommand::Decode),
+            _ => Err(format!("Morse command not found: {}", s.to_string())),
         }
     }
 }
@@ -138,10 +167,15 @@ impl FromStr for OutputType {
 #[derive(Debug, Parser)]
 #[clap(author, version, about)]
 struct MorseArgs {
+    /// Morse command:
+    /// -encode
+    /// -decode
+    pub morse_command: MorseCommand,
+
     /// Type of traduction from human readable text to morse:
     /// -text
     /// -audio
-    pub traduction_type: OutputType,
+    pub traduction_type: MorseTraductionType,
 
     /// Name of the file to read, if the value is "-" read from stdin
     #[clap(short, long)]
@@ -152,45 +186,90 @@ struct MorseArgs {
     out_file: String,
 }
 
-struct MorseTraducer {
+trait MorseTranslator {
+    fn traduce(&mut self, command: MorseCommand) -> io::Result<()>;
+}
+
+trait MorseEncoder<T> {
+    fn encode(raw_data: T) -> T;
+}
+
+trait MorseDecoder<T> {
+    fn decode(raw_data: T) -> T;
+}
+
+struct TextMorseTranslator {
+    // idea, create struct AudioMorseTranslation for audio implementation
+    // create struct OptionMorseTranslation with functions:
+    // - in_file(Option<&str>)  -> using get_reader
+    // - out_file(Option<&str>) -> using get_writer
+    // - traduction_type(MorseTraductionType)
+    // - traduction_options(MorseCommand)
+    // this patter will create and use a TextMorseTranslator
+    // or an AudioMorseTranslation trasparently
     input: Box<dyn BufRead>,
     output: Box<dyn Write>,
 }
 
-impl MorseTraducer {
-    fn new(input: Box<dyn BufRead>, output: Box<dyn Write>) -> Self {
-        Self { input, output }
-    }
-    fn copy(&mut self) -> io::Result<()> {
-        let shifted_buffer = self.input.as_mut().lines().map(|line| {
-            Letter::concat_morse(
-                line.unwrap()
-                    .bytes()
-                    .map(
-                        |byte| match Letter::from_str(str::from_utf8(&[byte]).unwrap()) {
-                            Ok(letter) => letter,
-                            Err(err) => panic!("Character not supported {:?}", err),
-                        },
-                    )
-                    .collect::<Vec<Letter<'_>>>(),
-            )
-        });
-        for line in shifted_buffer {
+impl MorseTranslator for TextMorseTranslator {
+    fn traduce(&mut self, command: MorseCommand) -> io::Result<()> {
+        let traduce_cmd = match command {
+            MorseCommand::Encode => Self::encode,
+            MorseCommand::Decode => Self::decode,
+        };
+
+        let traduced_lines = self
+            .input
+            .as_mut()
+            .lines()
+            .map(|line| traduce_cmd(line.unwrap()));
+        for line in traduced_lines {
             self.output.write((line + "\n").as_bytes())?;
         }
         self.output.flush()?;
         Ok(())
     }
 }
+
+impl TextMorseTranslator {
+    fn new(input: Box<dyn BufRead>, output: Box<dyn Write>) -> Self {
+        Self { input, output }
+    }
+}
+
+impl MorseEncoder<String> for TextMorseTranslator {
+    fn encode(line: String) -> String {
+        Letter::concat_morse(
+            line.bytes()
+                .map(
+                    |byte| match Letter::from_str(str::from_utf8(&[byte]).unwrap()) {
+                        Ok(letter) => letter,
+                        Err(err) => panic!("Character not supported {:?}", err),
+                    },
+                )
+                .collect::<Vec<Letter<'_>>>(),
+        )
+    }
+}
+
+impl MorseDecoder<String> for TextMorseTranslator {
+    fn decode(line: String) -> String {
+        Letter::concat_text(
+            line.split_whitespace()
+                .map(|morse_letter| match Letter::from_str(morse_letter) {
+                    Ok(letter) => letter,
+                    Err(err) => panic!("Character not supported {:?}", err),
+                })
+                .collect::<Vec<Letter<'_>>>(),
+        )
+    }
+}
+
 fn get_reader(arg: Option<&str>) -> Box<dyn BufRead> {
     match arg.as_deref() {
         None | Some("-") => Box::new(io::stdin().lock()),
         Some(file_name) => Box::new(BufReader::new(
-            OpenOptions::new()
-                .read(true)
-                .create(true)
-                .open(file_name)
-                .unwrap(),
+            OpenOptions::new().read(true).open(file_name).unwrap(),
         )),
     }
 }
@@ -211,9 +290,8 @@ fn get_writer(arg: Option<&str>) -> Box<dyn Write> {
 
 fn main() {
     let args = MorseArgs::parse();
-    print!("{:?}", args);
     let out_writer = get_writer(Some(&args.out_file));
     let in_reader = get_reader(Some(&args.in_file));
-    let mut morse_traducer = MorseTraducer::new(in_reader, out_writer);
-    morse_traducer.copy().unwrap();
+    let mut morse_cli = TextMorseTranslator::new(in_reader, out_writer);
+    morse_cli.traduce(args.morse_command).unwrap();
 }
