@@ -198,6 +198,31 @@ trait MorseDecoder<T> {
     fn decode(raw_data: T) -> T;
 }
 
+fn get_reader(arg: &str) -> Box<dyn BufRead> {
+    match arg {
+        "-" => Box::new(io::stdin().lock()),
+        x if x.is_empty() => Box::new(io::stdin().lock()),
+        file_name => Box::new(BufReader::new(
+            OpenOptions::new().read(true).open(file_name).unwrap(),
+        )),
+    }
+}
+
+fn get_writer(arg: &str) -> Box<dyn Write> {
+    match arg {
+        "-" => Box::new(io::stdout().lock()),
+        x if x.is_empty() => Box::new(io::stdout().lock()),
+        file_name => Box::new(
+            OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(file_name)
+                .unwrap(),
+        ),
+    }
+}
+
 struct TextMorseTranslator {
     // idea, create struct AudioMorseTranslation for audio implementation
     // create struct OptionMorseTranslation with functions:
@@ -207,8 +232,8 @@ struct TextMorseTranslator {
     // - traduction_options(MorseCommand)
     // this patter will create and use a TextMorseTranslator
     // or an AudioMorseTranslation trasparently
-    input: Box<dyn BufRead>,
-    output: Box<dyn Write>,
+    input_filename: String,
+    output_filename: String,
 }
 
 impl MorseTranslator for TextMorseTranslator {
@@ -218,22 +243,34 @@ impl MorseTranslator for TextMorseTranslator {
             MorseCommand::Decode => Self::decode,
         };
 
-        let traduced_lines = self
-            .input
-            .as_mut()
+        let traduced_lines = get_reader(&self.input_filename)
             .lines()
             .map(|line| traduce_cmd(line.unwrap()));
+
+        let mut output = get_writer(&self.output_filename);
         for line in traduced_lines {
-            self.output.write((line + "\n").as_bytes())?;
+            output.write((line + "\n").as_bytes())?;
         }
-        self.output.flush()?;
-        Ok(())
+        output.flush()
     }
 }
 
 impl TextMorseTranslator {
-    fn new(input: Box<dyn BufRead>, output: Box<dyn Write>) -> Self {
-        Self { input, output }
+    fn new() -> Self {
+        TextMorseTranslator {
+            input_filename: "".to_string(),
+            output_filename: "".to_string(),
+        }
+    }
+
+    fn in_file(&mut self, input_filename: &str) -> &mut Self {
+        self.input_filename = input_filename.to_owned();
+        self
+    }
+
+    fn out_file(&mut self, output_filename: &str) -> &mut Self {
+        self.output_filename = output_filename.to_owned();
+        self
     }
 }
 
@@ -265,33 +302,11 @@ impl MorseDecoder<String> for TextMorseTranslator {
     }
 }
 
-fn get_reader(arg: Option<&str>) -> Box<dyn BufRead> {
-    match arg.as_deref() {
-        None | Some("-") => Box::new(io::stdin().lock()),
-        Some(file_name) => Box::new(BufReader::new(
-            OpenOptions::new().read(true).open(file_name).unwrap(),
-        )),
-    }
-}
-
-fn get_writer(arg: Option<&str>) -> Box<dyn Write> {
-    match arg.as_deref() {
-        None | Some("-") => Box::new(io::stdout().lock()),
-        Some(file_name) => Box::new(
-            OpenOptions::new()
-                .write(true)
-                .create(true)
-                .truncate(true)
-                .open(file_name)
-                .unwrap(),
-        ),
-    }
-}
-
 fn main() {
     let args = MorseArgs::parse();
-    let out_writer = get_writer(Some(&args.out_file));
-    let in_reader = get_reader(Some(&args.in_file));
-    let mut morse_cli = TextMorseTranslator::new(in_reader, out_writer);
-    morse_cli.traduce(args.morse_command).unwrap();
+    TextMorseTranslator::new()
+        .out_file(&args.out_file)
+        .in_file(&args.in_file)
+        .traduce(args.morse_command)
+        .unwrap();
 }
