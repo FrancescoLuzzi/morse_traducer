@@ -62,16 +62,12 @@ struct MorseArgs {
     out_file: String,
 }
 
-trait MorseTranslator {
+trait MorseTranslator<T, W> {
     fn traduce(&mut self, command: MorseCommand) -> io::Result<()>;
-}
 
-trait MorseEncoder<T> {
-    fn encode(raw_data: T) -> T;
-}
+    fn encode(raw_data: T) -> W;
 
-trait MorseDecoder<T> {
-    fn decode(raw_data: T) -> T;
+    fn decode(raw_data: T) -> W;
 }
 
 fn get_reader(arg: &str) -> Box<dyn BufRead> {
@@ -110,25 +106,63 @@ struct TextMorseTranslator {
     // or an AudioMorseTranslation trasparently
     input_filename: String,
     output_filename: String,
+    traduction_type: MorseTraductionType,
 }
 
-impl MorseTranslator for TextMorseTranslator {
+impl<'a> MorseTranslator<String, Vec<Letter<'a>>> for TextMorseTranslator {
     fn traduce(&mut self, command: MorseCommand) -> io::Result<()> {
-        let traduce_cmd = match command {
+        let read_cmd = match command {
             MorseCommand::Encode => Self::encode,
             MorseCommand::Decode => Self::decode,
         };
 
+        let traduce_cmd = match command {
+            MorseCommand::Encode => Letter::concat_morse,
+            MorseCommand::Decode => Letter::concat_morse,
+        };
+
         let traduced_lines = get_reader(&self.input_filename)
             .lines()
-            .map(|line| traduce_cmd(line.unwrap()));
+            .map(|line| read_cmd(line.unwrap()));
 
         let mut output = get_writer(&self.output_filename);
-        for line in traduced_lines {
-            output.write((line + "\n").as_bytes())?;
+        for line in traduced_lines.map(traduce_cmd) {
+            output.write(&line)?;
         }
         output.flush()
     }
+
+    fn encode(line: String) -> Vec<Letter<'a>> {
+        line.bytes()
+            .map(
+                |byte| match Letter::from_str(str::from_utf8(&[byte]).unwrap()) {
+                    Ok(letter) => letter,
+                    Err(err) => panic!("Character not supported {:?}", err),
+                },
+            )
+            .collect::<Vec<Letter<'_>>>()
+    }
+
+    fn decode(line: String) -> Vec<Letter<'a>> {
+        line.split_whitespace()
+            .map(|morse_letter| match Letter::from_str(morse_letter) {
+                Ok(letter) => letter,
+                Err(err) => panic!("Character not supported {:?}", err),
+            })
+            .collect::<Vec<Letter<'_>>>()
+    }
+}
+
+fn make_bytes<T>(number: T) -> Vec<u8>
+where
+    T: Into<u64>,
+{
+    let number: u64 = number.into();
+    let mut b: Vec<u8> = Vec::new();
+    for i in 0..std::mem::size_of::<T>() {
+        b.push(((number >> (8 * i)) & 0xff) as u8);
+    }
+    b
 }
 
 impl TextMorseTranslator {
@@ -136,6 +170,7 @@ impl TextMorseTranslator {
         TextMorseTranslator {
             input_filename: "".to_string(),
             output_filename: "".to_string(),
+            traduction_type: MorseTraductionType::Text,
         }
     }
 
@@ -147,34 +182,6 @@ impl TextMorseTranslator {
     fn out_file(&mut self, output_filename: &str) -> &mut Self {
         self.output_filename = output_filename.to_owned();
         self
-    }
-}
-
-impl MorseEncoder<String> for TextMorseTranslator {
-    fn encode(line: String) -> String {
-        Letter::concat_morse(
-            line.bytes()
-                .map(
-                    |byte| match Letter::from_str(str::from_utf8(&[byte]).unwrap()) {
-                        Ok(letter) => letter,
-                        Err(err) => panic!("Character not supported {:?}", err),
-                    },
-                )
-                .collect::<Vec<Letter<'_>>>(),
-        )
-    }
-}
-
-impl MorseDecoder<String> for TextMorseTranslator {
-    fn decode(line: String) -> String {
-        Letter::concat_text(
-            line.split_whitespace()
-                .map(|morse_letter| match Letter::from_str(morse_letter) {
-                    Ok(letter) => letter,
-                    Err(err) => panic!("Character not supported {:?}", err),
-                })
-                .collect::<Vec<Letter<'_>>>(),
-        )
     }
 }
 

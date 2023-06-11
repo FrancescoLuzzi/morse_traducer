@@ -1,32 +1,34 @@
+mod wav;
+
 use std::str::FromStr;
+
 #[derive(Debug)]
 pub struct Letter<'a>(&'a str, &'a str);
 
 impl<'a> Letter<'a> {
-    pub fn concat_morse(args: Vec<Letter<'_>>) -> String {
-        let mut output = String::from("");
-        if let Some(letter) = args.first() {
+    pub fn concat_morse(args: Vec<Letter<'_>>) -> Vec<u8> {
+        let mut output: Vec<u8> = Vec::new();
+        for letter in args {
             let Letter(_, morse) = letter;
-            output = String::from(*morse);
+            output.extend_from_slice(b" ");
+            output.extend_from_slice(morse.as_bytes());
         }
-        for letter in args.iter().skip(1) {
-            let Letter(_, morse) = letter;
-            output = output + " " + morse;
-        }
+        output.extend_from_slice(b"\n");
         output
     }
 
-    pub fn concat_text(args: Vec<Letter<'_>>) -> String {
-        let mut output = String::from("");
-        if let Some(letter) = args.first() {
+    pub fn concat_text(args: Vec<Letter<'_>>) -> Vec<u8> {
+        let mut output: Vec<u8> = Vec::new();
+        for letter in args {
             let Letter(text, _) = letter;
-            output = String::from(*text);
+            output.extend_from_slice(text.as_bytes());
         }
-        for letter in args.iter().skip(1) {
-            let Letter(text, _) = letter;
-            output = output + text;
-        }
+        output.extend_from_slice(b"\n");
         output
+    }
+
+    pub fn concat_audio(args: Vec<Letter<'_>>) -> Vec<u8> {
+        todo!()
     }
 }
 
