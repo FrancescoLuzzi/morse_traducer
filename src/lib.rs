@@ -1,6 +1,10 @@
-mod wav;
+pub mod wav;
+use std::{str::FromStr};
+use wav::{notable_notes, Volume};
 
-use std::str::FromStr;
+const DOT_DURATION: f32 = 0.1;
+const LINE_DURATION: f32 = DOT_DURATION * 2.0;
+const SLASH_DURATION: f32 = DOT_DURATION * 4.0;
 
 #[derive(Debug)]
 pub struct Letter<'a>(&'a str, &'a str);
@@ -27,8 +31,27 @@ impl<'a> Letter<'a> {
         output
     }
 
-    pub fn concat_audio(args: Vec<Letter<'_>>) -> Vec<u8> {
-        todo!()
+    pub fn concat_audio(args: Vec<Letter<'a>>) -> Vec<i16> {
+        let mut output: Vec<i16> = Vec::new();
+        for ch in args
+            .iter()
+            .map(|x| -> &str {
+                let Self(_, y) = x;
+                *y
+            })
+            .collect::<String>()
+            .chars()
+        {
+            let chunk = match ch {
+                '.' => notable_notes::A4.audio_wave(DOT_DURATION, &Volume::Medium),
+                '-' => notable_notes::A4.audio_wave(LINE_DURATION, &Volume::Medium),
+                '/' => notable_notes::A4.audio_wave(SLASH_DURATION, &Volume::Medium),
+                _ => Vec::new(),
+            };
+            output.extend_from_slice(&chunk);
+            output.extend_from_slice(&notable_notes::G0.audio_wave(DOT_DURATION, &Volume::Silent))
+        }
+        output
     }
 }
 

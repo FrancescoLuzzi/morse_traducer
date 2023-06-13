@@ -43,8 +43,8 @@ pub mod notable_notes {
 }
 
 impl Note {
-    pub fn combine(notes: &[Self], secs: usize, volume: &Volume) -> Vec<i16> {
-        let nsamples = secs * SAMPLE_RATE as usize;
+    pub fn combine(notes: &[Self], secs: f32, volume: &Volume) -> Vec<i16> {
+        let nsamples = (secs * SAMPLE_RATE as f32) as u32;
         let mut buf: Vec<i16> = Vec::new();
         let notes_number = notes.len() as i16;
         for _ in 0..nsamples {
@@ -58,8 +58,8 @@ impl Note {
         buf
     }
 
-    pub fn audio_wave(&self, secs: usize, volume: &Volume) -> Vec<i16> {
-        let nsamples = secs * SAMPLE_RATE as usize;
+    pub fn audio_wave(&self, secs: f32, volume: &Volume) -> Vec<i16> {
+        let nsamples = (secs * SAMPLE_RATE as f32) as u32;
         let mut buf: Vec<i16> = Vec::new();
         for t in 0..nsamples {
             let s = match *volume {
@@ -88,7 +88,7 @@ where
     b
 }
 
-fn write_wav(data: Vec<i16>, writer: &mut Box<dyn Write>) -> io::Result<()> {
+pub fn write_wav(data: Vec<i16>, writer: &mut Box<dyn Write>) -> io::Result<()> {
     let nsamples = data.len() * 2;
     writer.write_all(b"RIFF")?;
     let rsize = make_bytes::<u32>(20 + nsamples as u32); // added 20 for the rest of the header
@@ -135,12 +135,12 @@ fn test_file() {
         }
     }
     let mut data_content = Vec::new();
-    data_content.extend_from_slice(&notable_notes::A4.audio_wave(3, &Volume::Medium));
-    data_content.extend_from_slice(&notable_notes::A4.audio_wave(3, &Volume::Silent));
-    data_content.extend_from_slice(&notable_notes::A4.audio_wave(3, &Volume::Low));
+    data_content.extend_from_slice(&notable_notes::A4.audio_wave(3.0, &Volume::Medium));
+    data_content.extend_from_slice(&notable_notes::A4.audio_wave(3.0, &Volume::Silent));
+    data_content.extend_from_slice(&notable_notes::A4.audio_wave(3.0, &Volume::Low));
     data_content.extend_from_slice(&Note::combine(
         &[notable_notes::A4, notable_notes::C4_SH, notable_notes::E0],
-        3,
+        3.0,
         &Volume::Medium,
     ));
     write_wav(data_content, &mut get_writer("file.wav")).unwrap();

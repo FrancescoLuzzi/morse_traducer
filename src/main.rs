@@ -1,3 +1,4 @@
+use morse_traducer::wav::write_wav;
 use morse_traducer::Letter;
 use std::fs::OpenOptions;
 use std::io::{self, BufRead, BufReader, Write};
@@ -65,6 +66,10 @@ struct MorseArgs {
 trait MorseTranslator<T, W> {
     fn traduce(&mut self, command: MorseCommand) -> io::Result<()>;
 
+    fn traduce_to_text(&mut self, command: MorseCommand) -> io::Result<()>;
+
+    fn traduce_to_audio(&mut self, command: MorseCommand) -> io::Result<()>;
+
     fn encode(raw_data: T) -> W;
 
     fn decode(raw_data: T) -> W;
@@ -111,6 +116,29 @@ struct TextMorseTranslator {
 
 impl<'a> MorseTranslator<String, Vec<Letter<'a>>> for TextMorseTranslator {
     fn traduce(&mut self, command: MorseCommand) -> io::Result<()> {
+        match self.traduction_type {
+            MorseTraductionType::Text => self.traduce_to_text(command),
+            MorseTraductionType::Audio => self.traduce_to_audio(command),
+        }
+    }
+
+    fn traduce_to_audio(&mut self, command: MorseCommand) -> io::Result<()> {
+        let read_cmd = match command {
+            MorseCommand::Encode => Self::encode,
+            MorseCommand::Decode => Self::decode,
+        };
+
+        let traduced_lines = get_reader(&self.input_filename)
+            .lines()
+            .map(|line| read_cmd(line.unwrap()))
+            .flatten()
+            .collect();
+        let mut output = get_writer(&self.output_filename);
+        write_wav(Letter::concat_audio(traduced_lines), &mut output)?;
+        output.flush()
+    }
+
+    fn traduce_to_text(&mut self, command: MorseCommand) -> io::Result<()> {
         let read_cmd = match command {
             MorseCommand::Encode => Self::encode,
             MorseCommand::Decode => Self::decode,
@@ -118,7 +146,7 @@ impl<'a> MorseTranslator<String, Vec<Letter<'a>>> for TextMorseTranslator {
 
         let traduce_cmd = match command {
             MorseCommand::Encode => Letter::concat_morse,
-            MorseCommand::Decode => Letter::concat_morse,
+            MorseCommand::Decode => Letter::concat_text,
         };
 
         let traduced_lines = get_reader(&self.input_filename)
@@ -153,18 +181,6 @@ impl<'a> MorseTranslator<String, Vec<Letter<'a>>> for TextMorseTranslator {
     }
 }
 
-fn make_bytes<T>(number: T) -> Vec<u8>
-where
-    T: Into<u64>,
-{
-    let number: u64 = number.into();
-    let mut b: Vec<u8> = Vec::new();
-    for i in 0..std::mem::size_of::<T>() {
-        b.push(((number >> (8 * i)) & 0xff) as u8);
-    }
-    b
-}
-
 impl TextMorseTranslator {
     fn new() -> Self {
         TextMorseTranslator {
@@ -183,6 +199,11 @@ impl TextMorseTranslator {
         self.output_filename = output_filename.to_owned();
         self
     }
+
+    fn traduction_type(&mut self, traduction_type: MorseTraductionType) -> &mut Self {
+        self.traduction_type = traduction_type;
+        self
+    }
 }
 
 fn main() {
@@ -190,6 +211,7 @@ fn main() {
     TextMorseTranslator::new()
         .out_file(&args.out_file)
         .in_file(&args.in_file)
+        .traduction_type(args.traduction_type)
         .traduce(args.morse_command)
         .unwrap();
 }
