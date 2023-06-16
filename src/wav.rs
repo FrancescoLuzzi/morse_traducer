@@ -18,7 +18,7 @@ impl Volume {
             Volume::Low => 0.3,
             Volume::Medium => 0.5,
             Volume::High => 0.8,
-            Volume::Custom(volume) => volume.clamp(0.01, 1.0) as f32,
+            Volume::Custom(volume) => volume.clamp(0.01, 1.0),
         }
     }
 }
@@ -45,11 +45,8 @@ pub mod notable_notes {
 impl Note {
     pub fn combine(notes: &[Self], secs: f32, volume: &Volume) -> Vec<i16> {
         let nsamples = (secs * SAMPLE_RATE as f32) as u32;
-        let mut buf: Vec<i16> = Vec::new();
+        let mut buf: Vec<i16> = vec![0; nsamples as usize];
         let notes_number = notes.len() as i16;
-        for _ in 0..nsamples {
-            buf.push(0);
-        }
         for values in notes.iter().map(|note| note.audio_wave(secs, volume)) {
             for (new_val, val) in buf.iter_mut().zip(&values) {
                 *new_val += val / notes_number;

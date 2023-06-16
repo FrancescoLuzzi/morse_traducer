@@ -19,7 +19,7 @@ impl FromStr for MorseTraductionType {
         match s.to_ascii_lowercase().as_str() {
             "text" => Ok(MorseTraductionType::Text),
             "audio" => Ok(MorseTraductionType::Audio),
-            _ => Err(format!("Type of output not found: {}", s.to_string())),
+            _ => Err(format!("Type of output not found: {}", s)),
         }
     }
 }
@@ -36,7 +36,7 @@ impl FromStr for MorseCommand {
         match s.to_ascii_lowercase().as_str() {
             "e" | "encode" => Ok(MorseCommand::Encode),
             "d" | "decode" => Ok(MorseCommand::Decode),
-            _ => Err(format!("Morse command not found: {}", s.to_string())),
+            _ => Err(format!("Morse command not found: {}", s)),
         }
     }
 }
@@ -130,8 +130,7 @@ impl<'a> MorseTranslator<String, Vec<Letter<'a>>> for TextMorseTranslator {
 
         let traduced_lines = get_reader(&self.input_filename)
             .lines()
-            .map(|line| read_cmd(line.unwrap()))
-            .flatten()
+            .flat_map(|line| read_cmd(line.unwrap()))
             .collect();
         let mut output = get_writer(&self.output_filename);
         write_wav(Letter::concat_audio(traduced_lines), &mut output)?;
@@ -155,7 +154,7 @@ impl<'a> MorseTranslator<String, Vec<Letter<'a>>> for TextMorseTranslator {
 
         let mut output = get_writer(&self.output_filename);
         for line in traduced_lines.map(traduce_cmd) {
-            output.write(&line)?;
+            output.write_all(&line)?;
         }
         output.flush()
     }

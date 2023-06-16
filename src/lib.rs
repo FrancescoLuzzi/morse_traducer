@@ -1,5 +1,5 @@
 pub mod wav;
-use std::{str::FromStr};
+use std::str::FromStr;
 use wav::{notable_notes, Volume};
 
 const DOT_DURATION: f32 = 0.1;
@@ -37,7 +37,7 @@ impl<'a> Letter<'a> {
             .iter()
             .map(|x| -> &str {
                 let Self(_, y) = x;
-                *y
+                y
             })
             .collect::<String>()
             .chars()
@@ -138,10 +138,7 @@ impl FromStr for Letter<'_> {
             "9" | "----." => Ok(morse_alphabet::NINE),
             "0" | "-----" => Ok(morse_alphabet::ZERO),
             " " | "/" => Ok(morse_alphabet::SPACE),
-            _ => Err(format!(
-                "No representation found for the string: {}",
-                s.to_string()
-            )),
+            _ => Err(format!("No representation found for the string: {}", s)),
         }
     }
 }
