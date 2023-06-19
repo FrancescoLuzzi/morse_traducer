@@ -31,16 +31,14 @@ impl<'a> Letter<'a> {
         output
     }
 
-    pub fn concat_audio(args: Vec<Letter<'a>>) -> Vec<i16> {
+    pub fn concat_audio<T: Iterator<Item = Letter<'a>>>(args: T) -> Vec<i16> {
         let mut output: Vec<i16> = Vec::new();
         for ch in args
-            .iter()
             .map(|x| -> &str {
                 let Self(_, y) = x;
                 y
             })
-            .collect::<String>()
-            .chars()
+            .flat_map(|x| x.chars())
         {
             let chunk = match ch {
                 '.' => notable_notes::A4.audio_wave(DOT_DURATION, &Volume::Medium),

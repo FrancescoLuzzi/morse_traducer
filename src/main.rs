@@ -130,8 +130,7 @@ impl<'a> MorseTranslator<String, Vec<Letter<'a>>> for TextMorseTranslator {
 
         let traduced_lines = get_reader(&self.input_filename)
             .lines()
-            .flat_map(|line| read_cmd(line.unwrap()))
-            .collect();
+            .flat_map(|line| read_cmd(line.unwrap()));
         let mut output = get_writer(&self.output_filename);
         write_wav(Letter::concat_audio(traduced_lines), &mut output)?;
         output.flush()
