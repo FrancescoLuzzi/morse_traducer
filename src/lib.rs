@@ -1,4 +1,8 @@
+pub mod parser;
+pub mod translator;
+pub mod utils;
 pub mod wav;
+
 use std::str::FromStr;
 use wav::{notable_notes, Volume};
 
