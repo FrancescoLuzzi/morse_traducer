@@ -1,4 +1,5 @@
 use crate::parser::{MorseCommand, MorseTraductionType};
+use crate::polyphonia::SAMPLE_RATE;
 use crate::utils::{get_reader, get_writer};
 use crate::wav::write_wav;
 use crate::Letter;
@@ -50,7 +51,11 @@ impl<'a> MorseTranslator<String, Vec<Letter<'a>>> for TextMorseTranslator {
             .lines()
             .flat_map(|line| read_cmd(line.unwrap()));
         let mut output = get_writer(&self.output_filename);
-        write_wav(Letter::concat_audio(traduced_lines), &mut output)?;
+        write_wav(
+            Letter::concat_audio(traduced_lines),
+            SAMPLE_RATE,
+            &mut output,
+        )?;
         output.flush()
     }
 

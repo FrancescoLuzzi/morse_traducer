@@ -1,10 +1,11 @@
 pub mod parser;
+pub mod polyphonia;
 pub mod translator;
 pub mod utils;
 pub mod wav;
 
+use polyphonia::{notable_notes, Volume};
 use std::str::FromStr;
-use wav::{notable_notes, Volume};
 
 const DOT_DURATION: f32 = 0.1;
 const LINE_DURATION: f32 = DOT_DURATION * 2.0;
@@ -15,8 +16,17 @@ pub struct Letter<'a>(&'a str, &'a str);
 
 impl<'a> Letter<'a> {
     pub fn concat_morse(args: Vec<Letter<'_>>) -> Vec<u8> {
+        let mut iter_args = args.iter();
+        let first_letter = iter_args.next();
+
+        if first_letter.is_none() {}
+
         let mut output: Vec<u8> = Vec::new();
-        for letter in args {
+        // add first letter without b" "
+        let Letter(_, morse) = first_letter.unwrap();
+        output.extend_from_slice(morse.as_bytes());
+
+        for letter in iter_args {
             let Letter(_, morse) = letter;
             output.extend_from_slice(b" ");
             output.extend_from_slice(morse.as_bytes());
