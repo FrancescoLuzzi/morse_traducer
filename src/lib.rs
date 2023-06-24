@@ -57,7 +57,7 @@ impl<'a> Letter<'a> {
             let chunk = match ch {
                 '.' => notable_notes::A4.audio_wave(DOT_DURATION, &Volume::Medium),
                 '-' => notable_notes::A4.audio_wave(LINE_DURATION, &Volume::Medium),
-                '/' => notable_notes::A4.audio_wave(SLASH_DURATION, &Volume::Medium),
+                '/' => notable_notes::A4.audio_wave(SLASH_DURATION, &Volume::Silent),
                 _ => Vec::new(),
             };
             output.extend_from_slice(&chunk);
