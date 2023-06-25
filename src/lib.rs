@@ -31,7 +31,6 @@ impl<'a> Letter<'a> {
             output.extend_from_slice(b" ");
             output.extend_from_slice(morse.as_bytes());
         }
-        output.extend_from_slice(b"\n");
         output
     }
 
@@ -41,7 +40,6 @@ impl<'a> Letter<'a> {
             let Letter(text, _) = letter;
             output.extend_from_slice(text.as_bytes());
         }
-        output.extend_from_slice(b"\n");
         output
     }
 

@@ -3,8 +3,11 @@ use crate::polyphonia::SAMPLE_RATE;
 use crate::utils::{get_reader, get_writer};
 use crate::wav::write_wav;
 use crate::Letter;
+use std::cell::RefCell;
 use std::default::Default;
 use std::io::{self, BufRead, Write};
+use std::ops::DerefMut;
+use std::rc::Rc;
 use std::str::{self, FromStr};
 
 pub trait MorseTranslator<T, W> {
@@ -28,12 +31,12 @@ pub struct TextMorseTranslator {
     // - traduction_options(MorseCommand)
     // this patter will create and use a TextMorseTranslator
     // or an AudioMorseTranslation trasparently
-    input_filename: String,
-    output_filename: String,
+    input_stream: Option<Vec<String>>,
+    output_stream: Option<Rc<RefCell<dyn Write>>>,
     traduction_type: MorseTraductionType,
 }
 
-impl<'a> MorseTranslator<String, Vec<Letter<'a>>> for TextMorseTranslator {
+impl<'a> MorseTranslator<&str, Vec<Letter<'a>>> for TextMorseTranslator {
     fn traduce(&mut self, command: MorseCommand) -> io::Result<()> {
         match self.traduction_type {
             MorseTraductionType::Text => self.traduce_to_text(command),
@@ -47,14 +50,21 @@ impl<'a> MorseTranslator<String, Vec<Letter<'a>>> for TextMorseTranslator {
             MorseCommand::Decode => Self::decode,
         };
 
-        let traduced_lines = get_reader(&self.input_filename)
-            .lines()
-            .flat_map(|line| read_cmd(line.unwrap()));
-        let mut output = get_writer(&self.output_filename);
+        let traduced_lines = self
+            .input_stream
+            .as_ref()
+            .expect("Input stream not initialized, failing.")
+            .iter()
+            .flat_map(|line| read_cmd(line));
+        let mut output = self
+            .output_stream
+            .as_ref()
+            .expect("Output stream not inizialized, failing.")
+            .borrow_mut();
         write_wav(
             Letter::concat_audio(traduced_lines),
             SAMPLE_RATE,
-            &mut output,
+            output.deref_mut(),
         )?;
         output.flush()
     }
@@ -70,18 +80,29 @@ impl<'a> MorseTranslator<String, Vec<Letter<'a>>> for TextMorseTranslator {
             MorseCommand::Decode => Letter::concat_text,
         };
 
-        let traduced_lines = get_reader(&self.input_filename)
-            .lines()
-            .map(|line| read_cmd(line.unwrap()));
+        let traduced_lines = self
+            .input_stream
+            .as_ref()
+            .expect("Input stream not initialized, failing.")
+            .iter()
+            .map(|line| read_cmd(line));
 
-        let mut output = get_writer(&self.output_filename);
-        for line in traduced_lines.map(traduce_cmd) {
+        let mut output = self
+            .output_stream
+            .as_ref()
+            .expect("Output stream not inizialized, failing.")
+            .borrow_mut();
+        let last_index = traduced_lines.len() - 1;
+        for (i, line) in traduced_lines.map(traduce_cmd).enumerate() {
             output.write_all(&line)?;
+            if i != last_index {
+                output.write_all(b"\n")?;
+            }
         }
         output.flush()
     }
 
-    fn encode(line: String) -> Vec<Letter<'a>> {
+    fn encode(line: &str) -> Vec<Letter<'a>> {
         line.bytes()
             .map(
                 |byte| match Letter::from_str(str::from_utf8(&[byte]).unwrap()) {
@@ -92,7 +113,7 @@ impl<'a> MorseTranslator<String, Vec<Letter<'a>>> for TextMorseTranslator {
             .collect::<Vec<Letter<'_>>>()
     }
 
-    fn decode(line: String) -> Vec<Letter<'a>> {
+    fn decode(line: &str) -> Vec<Letter<'a>> {
         line.split_whitespace()
             .map(|morse_letter| match Letter::from_str(morse_letter) {
                 Ok(letter) => letter,
@@ -111,19 +132,34 @@ impl Default for TextMorseTranslator {
 impl TextMorseTranslator {
     pub fn new() -> Self {
         TextMorseTranslator {
-            input_filename: "".to_string(),
-            output_filename: "".to_string(),
+            input_stream: None,
+            output_stream: None,
             traduction_type: MorseTraductionType::Text,
         }
     }
 
+    pub fn in_stream(&mut self, input_stream: Vec<String>) -> &mut Self {
+        self.input_stream = Some(input_stream);
+        self
+    }
+
     pub fn in_file(&mut self, input_filename: &str) -> &mut Self {
-        self.input_filename = input_filename.to_owned();
+        self.input_stream = Some(
+            get_reader(input_filename)
+                .lines()
+                .flatten()
+                .collect::<Vec<String>>(),
+        );
+        self
+    }
+
+    pub fn out_stream(&mut self, out_stream: Rc<RefCell<dyn Write>>) -> &mut Self {
+        self.output_stream = Some(out_stream);
         self
     }
 
     pub fn out_file(&mut self, output_filename: &str) -> &mut Self {
-        self.output_filename = output_filename.to_owned();
+        self.output_stream = Some(Rc::new(RefCell::new(get_writer(output_filename))));
         self
     }
 

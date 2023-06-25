@@ -12,7 +12,7 @@ where
     b
 }
 
-pub fn write_wav(data: Vec<i16>, sample_rate: u32, writer: &mut Box<dyn Write>) -> io::Result<()> {
+pub fn write_wav(data: Vec<i16>, sample_rate: u32, writer: &mut dyn Write) -> io::Result<()> {
     let nsamples = data.len() * 2;
     writer.write_all(b"RIFF")?;
     let rsize = make_bytes::<u32>(20 + nsamples as u32); // added 20 for the rest of the header

@@ -11,3 +11,23 @@ fn main() {
         .traduce(args.morse_command)
         .unwrap();
 }
+
+#[test]
+fn test_main() {
+    use morse_traducer::parser::MorseCommand;
+    use std::cell::RefCell;
+    use std::ops::Deref;
+    use std::rc::Rc;
+    use std::str::from_utf8;
+
+    let out = Rc::new(RefCell::new(Vec::new()));
+    let input = vec!["Hello World".into()];
+    TextMorseTranslator::default()
+        .out_stream(out.clone())
+        .in_stream(input)
+        // default to MorseTraductionType::Text
+        .traduce(MorseCommand::Encode)
+        .unwrap();
+    //launch with cargo test -- --nocapture
+    print!("{:?}", from_utf8(out.borrow().deref()));
+}
