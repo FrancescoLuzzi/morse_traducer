@@ -22,7 +22,7 @@ pub trait MorseTranslator<T, W> {
     fn decode(raw_data: T) -> W;
 }
 
-pub struct TextMorseTranslator {
+pub struct TextMorseTranslator<'a> {
     // idea, create struct AudioMorseTranslation for audio implementation
     // create struct OptionMorseTranslation with functions:
     // - in_file(Option<&str>)  -> using get_reader
@@ -32,11 +32,11 @@ pub struct TextMorseTranslator {
     // this patter will create and use a TextMorseTranslator
     // or an AudioMorseTranslation trasparently
     input_stream: Option<Vec<String>>,
-    output_stream: Option<Rc<RefCell<dyn Write>>>,
+    output_stream: Option<Rc<RefCell<dyn Write + 'a>>>,
     traduction_type: MorseTraductionType,
 }
 
-impl<'a> MorseTranslator<&str, Vec<Letter<'a>>> for TextMorseTranslator {
+impl<'l> MorseTranslator<&str, Vec<Letter<'l>>> for TextMorseTranslator<'_> {
     fn traduce(&mut self, command: MorseCommand) -> io::Result<()> {
         match self.traduction_type {
             MorseTraductionType::Text => self.traduce_to_text(command),
@@ -102,7 +102,7 @@ impl<'a> MorseTranslator<&str, Vec<Letter<'a>>> for TextMorseTranslator {
         output.flush()
     }
 
-    fn encode(line: &str) -> Vec<Letter<'a>> {
+    fn encode(line: &str) -> Vec<Letter<'l>> {
         line.bytes()
             .map(
                 |byte| match Letter::from_str(str::from_utf8(&[byte]).unwrap()) {
@@ -113,7 +113,7 @@ impl<'a> MorseTranslator<&str, Vec<Letter<'a>>> for TextMorseTranslator {
             .collect::<Vec<Letter<'_>>>()
     }
 
-    fn decode(line: &str) -> Vec<Letter<'a>> {
+    fn decode(line: &str) -> Vec<Letter<'l>> {
         line.split_whitespace()
             .map(|morse_letter| match Letter::from_str(morse_letter) {
                 Ok(letter) => letter,
@@ -123,13 +123,13 @@ impl<'a> MorseTranslator<&str, Vec<Letter<'a>>> for TextMorseTranslator {
     }
 }
 
-impl Default for TextMorseTranslator {
+impl Default for TextMorseTranslator<'_> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl TextMorseTranslator {
+impl<'a> TextMorseTranslator<'a> {
     pub fn new() -> Self {
         TextMorseTranslator {
             input_stream: None,
@@ -153,8 +153,8 @@ impl TextMorseTranslator {
         self
     }
 
-    pub fn out_stream(&mut self, out_stream: Rc<RefCell<dyn Write>>) -> &mut Self {
-        self.output_stream = Some(out_stream);
+    pub fn out_stream(&mut self, out_stream: &'a mut dyn Write) -> &mut Self {
+        self.output_stream = Some(Rc::new(RefCell::new(out_stream)));
         self
     }
 

@@ -15,19 +15,17 @@ fn main() {
 #[test]
 fn test_main() {
     use morse_traducer::parser::MorseCommand;
-    use std::cell::RefCell;
-    use std::ops::Deref;
-    use std::rc::Rc;
+    use std::ops::DerefMut;
     use std::str::from_utf8;
 
-    let out = Rc::new(RefCell::new(Vec::new()));
+    let mut out: Box<Vec<u8>> = Box::new(Vec::new());
     let input = vec!["Hello World".into()];
     TextMorseTranslator::default()
-        .out_stream(out.clone())
+        .out_stream(out.deref_mut())
         .in_stream(input)
         // default to MorseTraductionType::Text
         .traduce(MorseCommand::Encode)
         .unwrap();
     //launch with cargo test -- --nocapture
-    print!("{:?}", from_utf8(out.borrow().deref()));
+    print!("{:?}", from_utf8(&out));
 }
