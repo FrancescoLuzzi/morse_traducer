@@ -22,21 +22,21 @@ pub trait MorseTranslator<T, W> {
     fn decode(raw_data: T) -> W;
 }
 
-pub struct TextMorseTranslator<'a> {
+pub struct StreamedMorseTranslator<'a> {
     // idea, create struct AudioMorseTranslation for audio implementation
     // create struct OptionMorseTranslation with functions:
     // - in_file(Option<&str>)  -> using get_reader
     // - out_file(Option<&str>) -> using get_writer
     // - traduction_type(MorseTraductionType)
     // - traduction_options(MorseCommand)
-    // this patter will create and use a TextMorseTranslator
+    // this patter will create and use a StreamedMorseTranslator
     // or an AudioMorseTranslation trasparently
     input_stream: Option<Vec<String>>,
     pub output_stream: Option<Rc<RefCell<dyn Write + 'a>>>,
     pub traduction_type: MorseTraductionType,
 }
 
-impl<'l> MorseTranslator<&str, Vec<Letter<'l>>> for TextMorseTranslator<'_> {
+impl<'l> MorseTranslator<&str, Vec<Letter<'l>>> for StreamedMorseTranslator<'_> {
     fn traduce(&mut self, command: MorseCommand) -> io::Result<()> {
         match self.traduction_type {
             MorseTraductionType::Text => self.traduce_to_text(command),
@@ -123,15 +123,15 @@ impl<'l> MorseTranslator<&str, Vec<Letter<'l>>> for TextMorseTranslator<'_> {
     }
 }
 
-impl Default for TextMorseTranslator<'_> {
+impl Default for StreamedMorseTranslator<'_> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<'a> TextMorseTranslator<'a> {
+impl<'a> StreamedMorseTranslator<'a> {
     pub fn new() -> Self {
-        TextMorseTranslator {
+        StreamedMorseTranslator {
             input_stream: None,
             output_stream: None,
             traduction_type: MorseTraductionType::Text,

@@ -1,10 +1,10 @@
 use clap::Parser;
 use morse_traducer::parser::MorseArgs;
-use morse_traducer::translator::{MorseTranslator, TextMorseTranslator};
+use morse_traducer::translator::{MorseTranslator, StreamedMorseTranslator};
 
 fn main() {
     let args = MorseArgs::parse();
-    TextMorseTranslator::default()
+    StreamedMorseTranslator::default()
         .out_file(&args.out_file)
         .in_file(&args.in_file)
         .traduction_type(args.traduction_type)
@@ -20,7 +20,7 @@ fn test_main() {
 
     let mut out: Box<Vec<u8>> = Box::default();
     let input = vec!["Hello World".into()];
-    TextMorseTranslator::default()
+    StreamedMorseTranslator::default()
         .out_stream(out.deref_mut())
         .in_stream(input)
         // default to MorseTraductionType::Text
