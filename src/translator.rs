@@ -32,8 +32,8 @@ pub struct TextMorseTranslator<'a> {
     // this patter will create and use a TextMorseTranslator
     // or an AudioMorseTranslation trasparently
     input_stream: Option<Vec<String>>,
-    output_stream: Option<Rc<RefCell<dyn Write + 'a>>>,
-    traduction_type: MorseTraductionType,
+    pub output_stream: Option<Rc<RefCell<dyn Write + 'a>>>,
+    pub traduction_type: MorseTraductionType,
 }
 
 impl<'l> MorseTranslator<&str, Vec<Letter<'l>>> for TextMorseTranslator<'_> {
