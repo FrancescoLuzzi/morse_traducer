@@ -18,7 +18,7 @@ fn test_main() {
     use std::ops::DerefMut;
     use std::str::from_utf8;
 
-    let mut out: Box<Vec<u8>> = Box::new(Vec::new());
+    let mut out: Box<Vec<u8>> = Box::default();
     let input = vec!["Hello World".into()];
     TextMorseTranslator::default()
         .out_stream(out.deref_mut())

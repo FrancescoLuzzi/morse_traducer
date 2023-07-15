@@ -3,7 +3,7 @@ use std::str::{self, FromStr};
 use clap::{self, Parser};
 
 /// tuple struct with two string slices with static lifetime (aka: as long as the program runs)
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MorseTraductionType {
     Text,
     Audio,
@@ -20,7 +20,7 @@ impl FromStr for MorseTraductionType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MorseCommand {
     Encode,
     Decode,

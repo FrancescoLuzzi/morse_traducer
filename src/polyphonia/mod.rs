@@ -27,7 +27,9 @@ pub struct Note {
 
 pub mod notable_notes {
     use super::Note;
-    pub const A4: Note = Note { frequency: 440_f32 };
+    pub const A4: Note = Note {
+        frequency: 440.0_f32,
+    };
     pub const E0: Note = Note {
         frequency: 20.60_f32,
     };
@@ -37,7 +39,9 @@ pub mod notable_notes {
     pub const C0: Note = Note {
         frequency: 16.35_f32,
     };
-    pub const C4_SH: Note = Note { frequency: 277.18 };
+    pub const C4_SH: Note = Note {
+        frequency: 277.18_f32,
+    };
 }
 
 impl Note {
