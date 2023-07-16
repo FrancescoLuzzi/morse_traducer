@@ -8,7 +8,7 @@ fn main() {
         .out_file(&args.out_file)
         .in_file(&args.in_file)
         .traduction_type(args.traduction_type)
-        .traduce(args.morse_command)
+        .translate(args.morse_command)
         .unwrap();
 }
 
@@ -24,7 +24,7 @@ fn test_main() {
         .out_stream(out.deref_mut())
         .in_stream(input)
         // default to MorseTraductionType::Text
-        .traduce(MorseCommand::Encode)
+        .translate(MorseCommand::Encode)
         .unwrap();
     //launch with cargo test -- --nocapture
     print!("{:?}", from_utf8(&out));

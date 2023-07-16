@@ -5,17 +5,18 @@ use crate::wav::write_wav;
 use crate::Letter;
 use std::cell::RefCell;
 use std::default::Default;
-use std::io::{self, BufRead, Write};
+use std::error::Error;
+use std::io::{BufRead, Write};
 use std::ops::DerefMut;
 use std::rc::Rc;
 use std::str::{self, FromStr};
 
-pub trait MorseTranslator<T, W> {
-    fn traduce(&mut self, command: MorseCommand) -> io::Result<()>;
+pub trait MorseTranslator<T, W, R> {
+    fn translate(&mut self, command: MorseCommand) -> Result<R, Box<dyn Error>>;
 
-    fn traduce_to_text(&mut self, command: MorseCommand) -> io::Result<()>;
+    fn translate_to_text(&mut self, command: MorseCommand) -> Result<R, Box<dyn Error>>;
 
-    fn traduce_to_audio(&mut self, command: MorseCommand) -> io::Result<()>;
+    fn translate_to_audio(&mut self, command: MorseCommand) -> Result<R, Box<dyn Error>>;
 
     fn encode(raw_data: T) -> W;
 
@@ -36,21 +37,21 @@ pub struct StreamedMorseTranslator<'a> {
     pub traduction_type: MorseTraductionType,
 }
 
-impl<'l> MorseTranslator<&str, Vec<Letter<'l>>> for StreamedMorseTranslator<'_> {
-    fn traduce(&mut self, command: MorseCommand) -> io::Result<()> {
+impl<'l> MorseTranslator<&str, Vec<Letter<'l>>, ()> for StreamedMorseTranslator<'_> {
+    fn translate(&mut self, command: MorseCommand) -> Result<(), Box<dyn Error>> {
         match self.traduction_type {
-            MorseTraductionType::Text => self.traduce_to_text(command),
-            MorseTraductionType::Audio => self.traduce_to_audio(command),
+            MorseTraductionType::Text => self.translate_to_text(command),
+            MorseTraductionType::Audio => self.translate_to_audio(command),
         }
     }
 
-    fn traduce_to_audio(&mut self, command: MorseCommand) -> io::Result<()> {
+    fn translate_to_audio(&mut self, command: MorseCommand) -> Result<(), Box<dyn Error>> {
         let read_cmd = match command {
             MorseCommand::Encode => Self::encode,
             MorseCommand::Decode => Self::decode,
         };
 
-        let traduced_lines = self
+        let translated_lines = self
             .input_stream
             .as_ref()
             .expect("Input stream not initialized, failing.")
@@ -62,25 +63,26 @@ impl<'l> MorseTranslator<&str, Vec<Letter<'l>>> for StreamedMorseTranslator<'_> 
             .expect("Output stream not inizialized, failing.")
             .borrow_mut();
         write_wav(
-            Letter::concat_audio(traduced_lines),
+            Letter::concat_audio(translated_lines),
             SAMPLE_RATE,
             output.deref_mut(),
         )?;
-        output.flush()
+        output.flush()?;
+        Ok(())
     }
 
-    fn traduce_to_text(&mut self, command: MorseCommand) -> io::Result<()> {
+    fn translate_to_text(&mut self, command: MorseCommand) -> Result<(), Box<dyn Error>> {
         let read_cmd = match command {
             MorseCommand::Encode => Self::encode,
             MorseCommand::Decode => Self::decode,
         };
 
-        let traduce_cmd = match command {
+        let translate_cmd = match command {
             MorseCommand::Encode => Letter::concat_morse,
             MorseCommand::Decode => Letter::concat_text,
         };
 
-        let traduced_lines = self
+        let translated_lines = self
             .input_stream
             .as_ref()
             .expect("Input stream not initialized, failing.")
@@ -92,14 +94,15 @@ impl<'l> MorseTranslator<&str, Vec<Letter<'l>>> for StreamedMorseTranslator<'_> 
             .as_ref()
             .expect("Output stream not inizialized, failing.")
             .borrow_mut();
-        let last_index = traduced_lines.len() - 1;
-        for (i, line) in traduced_lines.map(traduce_cmd).enumerate() {
+        let last_index = translated_lines.len() - 1;
+        for (i, line) in translated_lines.map(translate_cmd).enumerate() {
             output.write_all(&line)?;
             if i != last_index {
                 output.write_all(b"\n")?;
             }
         }
-        output.flush()
+        output.flush()?;
+        Ok(())
     }
 
     fn encode(line: &str) -> Vec<Letter<'l>> {
