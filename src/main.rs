@@ -15,17 +15,28 @@ fn main() {
 #[test]
 fn test_main() {
     use morse_traducer::parser::MorseCommand;
-    use std::ops::DerefMut;
+    use std::cell::RefCell;
+    use std::ops::Deref;
+    use std::rc::Rc;
     use std::str::from_utf8;
 
-    let mut out: Box<Vec<u8>> = Box::default();
+    fn translate_out(
+        translator: &mut StreamedMorseTranslator,
+        input: Vec<String>,
+        translate_cmd: MorseCommand,
+    ) {
+        translator
+            .in_stream(input)
+            // default to MorseTraductionType::Text
+            .translate(translate_cmd)
+            .unwrap();
+    }
+
+    let out: Rc<RefCell<Box<Vec<u8>>>> = Rc::new(RefCell::new(Box::default()));
     let input = vec!["Hello World".into()];
-    StreamedMorseTranslator::default()
-        .out_stream(out.deref_mut())
-        .in_stream(input)
-        // default to MorseTraductionType::Text
-        .translate(MorseCommand::Encode)
-        .unwrap();
+    let mut translator = StreamedMorseTranslator::default();
+    translator.out_stream(out.clone());
+    translate_out(&mut translator, input, MorseCommand::Encode);
     //launch with cargo test -- --nocapture
-    print!("{:?}", from_utf8(&out));
+    print!("{:?}", from_utf8(&out.deref().borrow()));
 }

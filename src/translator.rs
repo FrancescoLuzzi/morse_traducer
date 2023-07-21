@@ -156,8 +156,8 @@ impl<'a> StreamedMorseTranslator<'a> {
         self
     }
 
-    pub fn out_stream(&mut self, out_stream: &'a mut dyn Write) -> &mut Self {
-        self.output_stream = Some(Rc::new(RefCell::new(out_stream)));
+    pub fn out_stream(&mut self, out_stream: Rc<RefCell<dyn Write>>) -> &mut Self {
+        self.output_stream = Some(out_stream);
         self
     }
 
