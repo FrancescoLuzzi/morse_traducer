@@ -68,5 +68,10 @@ fn test_file() {
         3.0,
         &Volume::Medium,
     ));
-    write_wav(data_content, SAMPLE_RATE, &mut get_writer("file.wav")).unwrap();
+    write_wav(
+        data_content,
+        SAMPLE_RATE,
+        &mut get_writer("file_static.wav"),
+    )
+    .unwrap();
 }
