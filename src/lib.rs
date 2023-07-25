@@ -4,7 +4,7 @@ pub mod translator;
 pub mod utils;
 pub mod wav;
 
-use polyphonia::{notable_notes, Volume};
+use polyphonia::{notable_notes, volume::Volume};
 use std::str::FromStr;
 
 const DOT_DURATION: f32 = 0.1;

@@ -1,2 +1,2 @@
-mod notes;
-pub use self::notes::write_wav;
+mod wav_writer;
+pub use wav_writer::write_wav;
