@@ -1,3 +1,5 @@
+use std::ops::Fn;
+
 pub const SAMPLE_RATE: u32 = 44100;
 pub const AMPLITUDE: f32 = i16::MAX as f32;
 
@@ -44,33 +46,55 @@ pub mod notable_notes {
     };
 }
 
+fn oscillator(w: f32, amplitute: f32) -> f32 {
+    amplitute * f32::sin(w)
+}
+
+fn natural_oscillator<F>(
+    frequency: f32,
+    time_start: f32,
+    time_curr: f32,
+    amplitude_calculator: F,
+    amplitude_modulator: F,
+) -> f32
+where
+    F: Fn(f32) -> f32,
+{
+    let time_delta = time_curr - time_start;
+    oscillator(
+        frequency * amplitude_modulator(time_delta),
+        amplitude_calculator(time_delta),
+    )
+}
+
+fn get_w(frequency: f32, time: f32, sample_rate: f32) -> f32 {
+    2.0 * std::f32::consts::PI * frequency * time / sample_rate
+}
+
 impl Note {
     pub fn combine(notes: &[Self], secs: f32, volume: &Volume) -> Vec<i16> {
-        let nsamples = (secs * SAMPLE_RATE as f32) as u32;
-        let mut buf: Vec<i16> = vec![0; nsamples as usize];
-        let notes_number = notes.len() as i16;
-        for values in notes.iter().map(|note| note.audio_wave(secs, volume)) {
-            for (new_val, val) in buf.iter_mut().zip(&values) {
-                *new_val += val / notes_number;
-            }
-        }
-        buf
+        let nsamples = secs * SAMPLE_RATE as f32;
+        (0..nsamples as u32)
+            .map(|t| {
+                notes.iter().map(move |note| match volume {
+                    Volume::Silent => 0_f32,
+                    _ => oscillator(get_w(note.frequency, t as f32, SAMPLE_RATE as f32), 1_f32),
+                })
+            })
+            .map(|step| f32::floor(AMPLITUDE * volume.scaling() * step.sum::<f32>()) as i16)
+            .collect::<Vec<i16>>()
     }
 
     pub fn audio_wave(&self, secs: f32, volume: &Volume) -> Vec<i16> {
-        let nsamples = (secs * SAMPLE_RATE as f32) as u32;
-        let mut buf: Vec<i16> = Vec::new();
-        for t in 0..nsamples {
-            let s = match *volume {
+        let nsamples = secs * SAMPLE_RATE as f32;
+        (0..nsamples as u32)
+            .map(|t| match *volume {
                 Volume::Silent => 0_i16,
-                _ => {
-                    let w = 2.0 * std::f32::consts::PI * self.frequency * t as f32;
-                    let s = f32::sin(w / (SAMPLE_RATE as f32));
-                    f32::floor(AMPLITUDE * (volume.scaling() * s)) as i16
-                }
-            };
-            buf.push(s);
-        }
-        buf
+                _ => f32::floor(oscillator(
+                    get_w(self.frequency, t as f32, SAMPLE_RATE as f32),
+                    AMPLITUDE * volume.scaling(),
+                )) as i16,
+            })
+            .collect()
     }
 }
