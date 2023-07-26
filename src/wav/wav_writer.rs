@@ -43,7 +43,7 @@ pub fn write_wav(data: Vec<i16>, sample_rate: u32, writer: &mut dyn Write) -> io
 
 #[test]
 fn test_file() {
-    use crate::polyphonia::{notable_notes, Note, Volume, SAMPLE_RATE};
+    use crate::polyphonia::{notable_notes, Note, Amplitude, SAMPLE_RATE};
     use std::fs::OpenOptions;
     fn get_writer(arg: &str) -> Box<dyn Write> {
         match arg {
@@ -60,13 +60,13 @@ fn test_file() {
         }
     }
     let mut data_content = Vec::new();
-    data_content.extend_from_slice(&notable_notes::A4.audio_wave(3.0, &Volume::Medium));
-    data_content.extend_from_slice(&notable_notes::A4.audio_wave(3.0, &Volume::Silent));
-    data_content.extend_from_slice(&notable_notes::A4.audio_wave(3.0, &Volume::Low));
+    data_content.extend_from_slice(&notable_notes::A4.audio_wave(3.0, &Amplitude::Medium));
+    data_content.extend_from_slice(&notable_notes::A4.audio_wave(3.0, &Amplitude::Silent));
+    data_content.extend_from_slice(&notable_notes::A4.audio_wave(3.0, &Amplitude::Low));
     data_content.extend_from_slice(&Note::combine(
         &[notable_notes::A4, notable_notes::C4_SH, notable_notes::E0],
         3.0,
-        &Volume::Medium,
+        &Amplitude::Medium,
     ));
     write_wav(
         data_content,

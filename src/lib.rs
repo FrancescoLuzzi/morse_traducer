@@ -4,7 +4,7 @@ pub mod translator;
 pub mod utils;
 pub mod wav;
 
-use polyphonia::{notable_notes, volume::Volume};
+use polyphonia::{notable_notes, Amplitude};
 use std::str::FromStr;
 
 const DOT_DURATION: f32 = 0.1;
@@ -53,13 +53,14 @@ impl<'a> Letter<'a> {
             .flat_map(|x| x.chars())
         {
             let chunk = match ch {
-                '.' => notable_notes::A4.audio_wave(DOT_DURATION, &Volume::Medium),
-                '-' => notable_notes::A4.audio_wave(LINE_DURATION, &Volume::Medium),
-                '/' => notable_notes::A4.audio_wave(SLASH_DURATION, &Volume::Silent),
+                '.' => notable_notes::A4.audio_wave(DOT_DURATION, &Amplitude::Medium),
+                '-' => notable_notes::A4.audio_wave(LINE_DURATION, &Amplitude::Medium),
+                '/' => notable_notes::A4.audio_wave(SLASH_DURATION, &Amplitude::Silent),
                 _ => Vec::new(),
             };
             output.extend_from_slice(&chunk);
-            output.extend_from_slice(&notable_notes::G0.audio_wave(DOT_DURATION, &Volume::Silent))
+            output
+                .extend_from_slice(&notable_notes::G0.audio_wave(DOT_DURATION, &Amplitude::Silent))
         }
         output
     }

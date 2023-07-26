@@ -1,11 +1,11 @@
 //public modules
+pub mod amplitude;
 pub mod notable_notes;
 pub mod note;
-pub mod volume;
 
 // public uses
+pub use amplitude::Amplitude;
 pub use note::Note;
-pub use volume::Volume;
 
 use std::ops::Fn;
 
