@@ -19,7 +19,14 @@ impl Note {
                     ),
                 })
             })
-            .map(|step| f32::floor(MAX_AMPLITUDE * volume.scaling() * step.sum::<f32>()) as i16)
+            .map(|step| {
+                // TODO: refactoring implementing Mean trait for iter
+                // https://stackoverflow.com/questions/43921436/extend-iterator-with-a-mean-method#answer-43926007
+                // You can use as base rust impl for Sum and their proc macro
+                // https://github.com/rust-lang/rust/blob/master/library/core/src/iter/traits/accum.rs
+                let (len, sum) = step.fold((0, 0_f32), |(len, sum), x| (len + 1, sum + x));
+                f32::floor(MAX_AMPLITUDE * volume.scaling() * sum / len as f32) as i16
+            })
             .collect::<Vec<i16>>()
     }
 
