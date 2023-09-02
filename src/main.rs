@@ -32,7 +32,7 @@ fn test_main() {
             .unwrap();
     }
 
-    let out: Rc<RefCell<Box<Vec<u8>>>> = Rc::new(RefCell::new(Box::default()));
+    let out: Rc<RefCell<Box<Vec<u8>>>> = Rc::default();
     let input = vec!["Hello World".into()];
     let mut translator = StreamedMorseTranslator::default();
     translator.out_stream(out.clone());
