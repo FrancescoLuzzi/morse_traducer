@@ -18,10 +18,12 @@ impl<'a> Letter<'a> {
     pub fn concat_morse(args: Vec<Letter<'_>>) -> Vec<u8> {
         let mut iter_args = args.iter();
         let first_letter = iter_args.next();
-
-        if first_letter.is_none() {}
-
         let mut output: Vec<u8> = Vec::new();
+
+        if first_letter.is_none() {
+            return output;
+        }
+
         // add first letter without b" "
         let Letter(_, morse) = first_letter.unwrap();
         output.extend_from_slice(morse.as_bytes());
